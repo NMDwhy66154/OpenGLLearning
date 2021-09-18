@@ -1,0 +1,2 @@
+E:\GLFWProject\GLFW001\x64\Debug\GLFW001.exe
+D:\Projects\OpenGLLearning\GLFW001\x64\Debug\GLFW001.exe
