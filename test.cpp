@@ -2,6 +2,7 @@
 #include<GLFW/glfw3.h>
 #include<iostream>
 #include "shader.h"
+#include "stb_image.h"
 
 using namespace std;
 
@@ -9,10 +10,11 @@ void processInput(GLFWwindow* window);
 void framebuffer_size_callback(GLFWwindow* window, int width, int height);
 
 float vertices[] = {
-	// 位置              // 颜色
-	 0.5f, -0.5f, 0.0f,  1.0f, 0.0f, 0.0f,   // 右下
-	-0.5f, -0.5f, 0.0f,  0.0f, 1.0f, 0.0f,   // 左下
-	 0.0f,  0.5f, 0.0f,  0.0f, 0.0f, 1.0f    // 顶部
+	//     ---- 位置 ----       ---- 颜色 ----     - 纹理坐标 -
+		 0.5f,  0.5f, 0.0f,   1.0f, 0.0f, 0.0f,   1.0f, 1.0f,   // 右上
+		 0.5f, -0.5f, 0.0f,   0.0f, 1.0f, 0.0f,   1.0f, 0.0f,   // 右下
+		-0.5f, -0.5f, 0.0f,   0.0f, 0.0f, 1.0f,   0.0f, 0.0f,   // 左下
+		-0.5f,  0.5f, 0.0f,   1.0f, 1.0f, 0.0f,   0.0f, 1.0f    // 左上
 };
 
 float vertices2[] = {
@@ -20,10 +22,16 @@ float vertices2[] = {
 	-0.5f, -0.5f, 0.0f, // 左下角
 	-0.5f, 0.5f, 0.0f, //右下角 
 };
-
+ 
 unsigned int indices[] = { // 注意索引从0开始! 
-	0, 1, 3, // 第一个三角形
-	1, 2, 3,
+	0,2,3,
+	0,1,2, // 第一个三角形
+};
+
+float texCoords[] = {
+	0.0f, 0.0f, // 左下角
+	1.0f, 0.0f, // 右下角
+	0.5f, 1.0f // 上中
 };
 
 unsigned int VBO;
@@ -66,10 +74,12 @@ int main() {
 	glGenVertexArrays(1, &VAO);
 	glBindVertexArray(VAO);
 
-	glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 6* sizeof(float), (void*)0);
+	glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 8* sizeof(float), (void*)0);
 	glEnableVertexAttribArray(0);
-	glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, 6 * sizeof(float), (void*)(3 * sizeof(float)));
+	glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, 8 * sizeof(float), (void*)(3 * sizeof(float)));
 	glEnableVertexAttribArray(1);
+	glVertexAttribPointer(2, 2, GL_FLOAT, GL_FALSE, 8 * sizeof(float), (void*)(6 * sizeof(float)));
+	glEnableVertexAttribArray(2);
 
 	glGenBuffers(1, &VBO2);
 	glBindBuffer(GL_ARRAY_BUFFER, VBO2);
@@ -84,6 +94,55 @@ int main() {
 	glGenBuffers(1, &EBO);
 	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, EBO);
 	glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(indices), indices, GL_STATIC_DRAW);
+
+	
+	
+
+	unsigned int texture1;
+	glGenTextures(1, &texture1);
+	glActiveTexture(GL_TEXTURE0);
+	glBindTexture(GL_TEXTURE_2D, texture1);
+
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+
+	int width, height, nrChannels;
+	stbi_set_flip_vertically_on_load(true);
+	unsigned char* data = stbi_load("container.jpg", &width, &height, &nrChannels, 0);
+
+	if (data) {
+		glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, width, height, 0, GL_RGB, GL_UNSIGNED_BYTE, data);
+		glGenerateMipmap(GL_TEXTURE_2D);
+	}
+	else {
+		cout << "Failed to load texture" << endl;
+	}
+	stbi_image_free(data);
+
+	unsigned int texture2;
+	glGenTextures(1, &texture2);
+	glActiveTexture(GL_TEXTURE1);
+	glBindTexture(GL_TEXTURE_2D, texture2);
+
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
+
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+
+	data = stbi_load("awesomeface.png", &width, &height, &nrChannels, 0);
+
+	if (data) {
+		glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, width, height, 0, GL_RGBA, GL_UNSIGNED_BYTE, data);
+		glGenerateMipmap(GL_TEXTURE_2D);
+	}
+	else {
+		cout << "Failed to load texture" << endl;
+	}
+	stbi_image_free(data);
 
 #pragma region Shader
 	/*vertexShader = glCreateShader(GL_VERTEX_SHADER);
@@ -128,31 +187,42 @@ int main() {
 	glDeleteShader(fragmentShader2);*/
 
 #pragma endregion
-	Shader ourShader("D:/Projects/OpenGLLearning/OpenGLLearning/shader.vs", "D:/Projects/OpenGLLearning/OpenGLLearning/shader.fs");
+	Shader ourShader("shader.vs", "shader.fs");
 	
 
-	
-
-
+	ourShader.use();
+	glUniform1i(glGetUniformLocation(ourShader.ID, "texture1"), 0);
+	ourShader.setInt("texture2", 1);
 	
 
 	int nrAttributes;
 	glGetIntegerv(GL_MAX_VERTEX_ATTRIBS, &nrAttributes);
 	std::cout << "Maximum nr of vertex attributes supported: " << nrAttributes << std::endl;
-
+	float alpha = 0;
 	while (!glfwWindowShouldClose(window))
 	{
 		processInput(window);
 
 		glClearColor(0.2f, 0.3f, 0.3f, 1.0f);
 		glClear(GL_COLOR_BUFFER_BIT);
-		float timeValue = glfwGetTime();
-		float greenValue = (sin(timeValue) / 2.0f) + 0.5f;
+		
+		
+		glActiveTexture(GL_TEXTURE0);
+		glBindTexture(GL_TEXTURE_2D, texture1);
+		glActiveTexture(GL_TEXTURE1);
+		glBindTexture(GL_TEXTURE_2D, texture2);
+		if (glfwGetKey(window, GLFW_KEY_UP) == GLFW_PRESS) {
+			alpha += 0.02;
+			alpha = min(alpha, 1.0f);
+		}
+		if (glfwGetKey(window, GLFW_KEY_DOWN) == GLFW_PRESS) {
+			alpha -= 0.02;
+			alpha = max(alpha, 0.0f);
+		}
+		ourShader.setFloat("alpha",alpha);
 		ourShader.use();
-		ourShader.setFloat("uniColor",greenValue);
-		ourShader.setFloat("xOffset",greenValue);
 		glBindVertexArray(VAO);
-		glDrawArrays(GL_TRIANGLES,0,3);
+		glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, indices);
 
 		glfwSwapBuffers(window);
 		glfwPollEvents();
