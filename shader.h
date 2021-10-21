@@ -110,6 +110,13 @@ public:
 	void setMat4(const string& name, mat4 value) const {
 		glUniformMatrix4fv(glGetUniformLocation(ID, name.c_str()),1, GL_FALSE, value_ptr(value));
 	}
+
+	void setVec3(const string& name, float x,float y,float z) const {
+		glUniform3f(glGetUniformLocation(ID, name.c_str()), x,y,z);
+	}
+	void setVec3(const string& name, vec3 value) const {
+		glUniform3f(glGetUniformLocation(ID, name.c_str()), value.x, value.y, value.z);
+	}
 };
 
 #endif // !SHADER_H
