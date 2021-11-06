@@ -179,12 +179,17 @@ int main() {
 
 
 	unsigned int diffuseTex = loadTexture("container2.png");
+	unsigned int specularTex = loadTexture("container2_specular.png");
+	unsigned int creativesamTex = loadTexture("matrix.jpg");
+
 	glActiveTexture(GL_TEXTURE0);
 	glBindTexture(GL_TEXTURE_2D, diffuseTex);
-
-	unsigned int specularTex = loadTexture("container2_specular.png");
+	
 	glActiveTexture(GL_TEXTURE1);
 	glBindTexture(GL_TEXTURE_2D, specularTex);
+
+	glActiveTexture(GL_TEXTURE2);
+	glBindTexture(GL_TEXTURE_2D, creativesamTex);
 
 
 	Shader lightingShader("shader.vs", "shader.fs");
@@ -197,12 +202,17 @@ int main() {
 
 	lightingShader.setInt("material.diffuse", 0);
 	lightingShader.setInt("material.specular", 1);
+	lightingShader.setInt("material.creativesam", 2);
 	lightingShader.setFloat("material.shininess", 32.0f);
 
+	lightingShader.setVec3("light.direction", -0.2f, -1.0f, -0.3f);
 	lightingShader.setVec3("light.position", lightPos);
 	lightingShader.setVec3("light.ambient", 0.2f, 0.2f, 0.2f);
 	lightingShader.setVec3("light.diffuse", 0.5f,0.5f,0.5f);
 	lightingShader.setVec3("light.specular", 1.0f,1.0f,1.0f);
+	lightingShader.setFloat("light.constant", 1.0f);
+	lightingShader.setFloat("light.linear", 0.09f);
+	lightingShader.setFloat("light.quadratic", 0.032f);
 
 	int nrAttributes;
 	glGetIntegerv(GL_MAX_VERTEX_ATTRIBS, &nrAttributes);
@@ -220,7 +230,7 @@ int main() {
 
 		processInput(window);
 
-		glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
+		glClearColor(0.2f, 0.2f, 0.2f, 1.0f);
 		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 		
 		
@@ -234,17 +244,27 @@ int main() {
 		mat4 projection;
 		projection = perspective(radians(camera.Zoom), screenWidth / screenHeight, 0.1f, 100.0f);
 
-		mat4 model = mat4(1.0f);
-
+		
+		mat4 model = mat4(1.0);
 		lightingShader.setMat4("model", model);
 		lightingShader.setMat4("view", view);
 		lightingShader.setMat4("projection", projection);
 
-		
+	
 		lightingShader.setVec3("viewPos", camera.Position);
 
 		glBindVertexArray(VAO);
-		glDrawArrays(GL_TRIANGLES, 0, 36);
+		for (unsigned int i = 0; i < 10; i++)
+		{
+			glm::mat4 model;
+			model = glm::translate(model, cubePositions[i]);
+			float angle = 20.0f * i;
+			model = glm::rotate(model, glm::radians(angle), glm::vec3(1.0f, 0.3f, 0.5f));
+			lightingShader.setMat4("model", model);
+
+			glDrawArrays(GL_TRIANGLES, 0, 36);
+		}
+
 
 
 		lampShader.use();
@@ -254,6 +274,8 @@ int main() {
 		model = translate(model, lightPos);
 		model = scale(model, vec3(0.2f));
 		lampShader.setMat4("model", model);
+
+		
 		
 		glBindVertexArray(lightVAO);
 		glDrawArrays(GL_TRIANGLES, 0, 36);
@@ -319,7 +341,8 @@ unsigned int loadTexture(char const* path) {
 	glGenTextures(1, &textureID);
 
 	int width, height, nrChannels;
-	unsigned char* data = stbi_load("container2.png", &width, &height, &nrChannels, 0);
+	unsigned char* data = stbi_load(path, &width, &height, &nrChannels, 0);
+	cout << nrChannels << endl;
 	if (data) {
 		GLenum format;
 		if (nrChannels == 1)
@@ -330,7 +353,7 @@ unsigned int loadTexture(char const* path) {
 			format = GL_RGBA;
 
 		glBindTexture(GL_TEXTURE_2D, textureID);
-		glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, width, height, 0, GL_RGBA, GL_UNSIGNED_BYTE, data);
+		glTexImage2D(GL_TEXTURE_2D, 0, format, width, height, 0, format, GL_UNSIGNED_BYTE, data);
 		glGenerateMipmap(GL_TEXTURE_2D);
 
 		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
