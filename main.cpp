@@ -1,12 +1,15 @@
-#include<glad/glad.h>
-#include<GLFW/glfw3.h>
-#include<iostream>
-#include "shader.h"
-#include "camera.h"
-#include "stb_image.h"
-#include<glm/glm.hpp>
-#include<glm/gtc/matrix_transform.hpp>
-#include<glm/gtc/type_ptr.hpp>
+#include <glad/glad.h>
+#include <GLFW/glfw3.h>
+#include <iostream>
+#include "HeadFile/shader.h"
+#include "HeadFile/camera.h"
+
+#include <glm/glm.hpp>
+#include <glm/gtc/matrix_transform.hpp>
+#include <glm/gtc/type_ptr.hpp>
+#include "HeadFile/mesh.h"
+#include "HeadFile/stb_image.h"
+#include "HeadFile/model.h"
 
 using namespace std;
 using namespace glm;
@@ -111,6 +114,13 @@ Camera camera = Camera(cameraPos, cameraUp, yaw1, pitch1);
 
 vec3 lightPos(1.2f, 1.0f, 2.0f);
 
+glm::vec3 pointLightPositions[] = {
+	glm::vec3(0.7f,  0.2f,  2.0f),
+	glm::vec3(2.3f, -3.3f, -4.0f),
+	glm::vec3(-4.0f,  2.0f, -12.0f),
+	glm::vec3(0.0f,  0.0f, -3.0f)
+};
+
 int main() {
 	glfwInit();
 	glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 3);
@@ -137,6 +147,8 @@ int main() {
 	glfwSetFramebufferSizeCallback(window,framebuffer_size_callback);
 	glfwSetCursorPosCallback(window, mouse_callback);
 	glfwSetScrollCallback(window, scroll_callback);
+
+	//Model sampleModel(FileSystem::getPath(""));
 
 	glGenBuffers(1, &VBO);
 	glBindBuffer(GL_ARRAY_BUFFER, VBO);
@@ -178,9 +190,9 @@ int main() {
 	stbi_set_flip_vertically_on_load(true);
 
 
-	unsigned int diffuseTex = loadTexture("container2.png");
-	unsigned int specularTex = loadTexture("container2_specular.png");
-	unsigned int creativesamTex = loadTexture("matrix.jpg");
+	unsigned int diffuseTex = loadTexture("Texture/container2.png");
+	unsigned int specularTex = loadTexture("Texture/container2_specular.png");
+	unsigned int creativesamTex = loadTexture("Texture/matrix.jpg");
 
 	glActiveTexture(GL_TEXTURE0);
 	glBindTexture(GL_TEXTURE_2D, diffuseTex);
@@ -205,14 +217,39 @@ int main() {
 	lightingShader.setInt("material.creativesam", 2);
 	lightingShader.setFloat("material.shininess", 32.0f);
 
-	lightingShader.setVec3("light.direction", -0.2f, -1.0f, -0.3f);
-	lightingShader.setVec3("light.position", lightPos);
-	lightingShader.setVec3("light.ambient", 0.2f, 0.2f, 0.2f);
-	lightingShader.setVec3("light.diffuse", 0.5f,0.5f,0.5f);
-	lightingShader.setVec3("light.specular", 1.0f,1.0f,1.0f);
-	lightingShader.setFloat("light.constant", 1.0f);
-	lightingShader.setFloat("light.linear", 0.09f);
-	lightingShader.setFloat("light.quadratic", 0.032f);
+	lightingShader.setVec3("dirLight.direction",vec3(1.0f,1.0f,1.0f));
+	lightingShader.setVec3("dirLight.ambient", vec3(0.2f,0.2f,0.2f));
+	lightingShader.setVec3("dirLight.diffuse", vec3(0.5f, 0.5f, 0.5f));
+	lightingShader.setVec3("dirLight.specular", vec3(0.5f, 0.5f, 0.5f));
+
+	int length = sizeof(pointLightPositions) / sizeof(pointLightPositions[0]);
+	for (int i = 0; i < length; i++) {
+		lightingShader.setVec3("pointLight[" + to_string(i) +"]"+".position", pointLightPositions[i]);
+
+		lightingShader.setVec3("pointLight[" + to_string(i) + "]"+".ambient", vec3(0.2f, 0.2f, 0.2f));
+		lightingShader.setVec3("pointLight[" + to_string(i) + "]"+".diffuse", vec3(0.5f, 0.5f, 0.5f));
+		lightingShader.setVec3("pointLight[" + to_string(i) + "]"+".specular", vec3(0.5f, 0.5f, 0.5f));
+
+		lightingShader.setFloat("pointLight[" + to_string(i) + "]" + ".constant", 1.0f);
+		lightingShader.setFloat("pointLight[" + to_string(i) + "]" + ".linear", 0.09f);
+		lightingShader.setFloat("pointLight[" + to_string(i) + "]" + ".quadratic", 0.032f);
+	}
+
+	lightingShader.setVec3("spotLight.position", camera.Position);
+	lightingShader.setVec3("spotLight.direction",camera.Front);
+
+	lightingShader.setFloat("spotLight.cutOff", cos(radians(12.5f)));
+	lightingShader.setFloat("spotLight.outerCutOff", cos(radians(17.5f)));
+
+	lightingShader.setVec3("spotLight.ambient", vec3(0.2f, 0.2f, 0.2f));
+	lightingShader.setVec3("spotLight.diffuse", vec3(0.5f, 0.5f, 0.5f));
+	lightingShader.setVec3("spotLight.specular", vec3(0.5f, 0.5f, 0.5f));
+	lightingShader.setFloat("spotLight.constant", 1.0f);
+	lightingShader.setFloat("spotLight.linear", 0.09f);
+	lightingShader.setFloat("spotLight.quadratic", 0.032f);
+
+	
+
 
 	int nrAttributes;
 	glGetIntegerv(GL_MAX_VERTEX_ATTRIBS, &nrAttributes);
@@ -252,6 +289,8 @@ int main() {
 
 	
 		lightingShader.setVec3("viewPos", camera.Position);
+		lightingShader.setVec3("spotLight.position", camera.Position);
+		lightingShader.setVec3("spotLight.direction", camera.Front);
 
 		glBindVertexArray(VAO);
 		for (unsigned int i = 0; i < 10; i++)
