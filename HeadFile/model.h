@@ -12,7 +12,7 @@ unsigned int TextureFromFile(const char *path, const string &directory, bool gam
 class Model
 {
 public:
-	Model(char *path);
+	Model(const char* path);
 	void Draw(Shader shader);
 private:
 	vector<Mesh> meshes;
@@ -24,7 +24,7 @@ private:
 	vector<Texture> loadMaterialTextures(aiMaterial *mat, aiTextureType type, string typeName);
 };
 
-Model::Model(char *path)
+Model::Model(const char *path)
 {
 	loadModel(path);
 }
@@ -39,7 +39,6 @@ void Model::Draw(Shader shader) {
 void Model::loadModel(string path) {
 	Importer importer;
 	const aiScene *scene = importer.ReadFile(path, aiProcess_Triangulate | aiProcess_FlipUVs);
-
 	if (!scene || scene->mFlags & AI_SCENE_FLAGS_INCOMPLETE || !scene->mRootNode) {
 		cout << "ERROR::ASSIMP::" << importer.GetErrorString() << endl;
 		return;
@@ -67,7 +66,6 @@ Mesh Model::processMesh(aiMesh *mesh, const aiScene *scene) {
 	vector<unsigned int> indices;
 	vector<Texture> textures;
 
-	
 	for (unsigned int i = 0; i < mesh->mNumVertices; i++)
 	{
 		Vertex vertex;
@@ -83,11 +81,7 @@ Mesh Model::processMesh(aiMesh *mesh, const aiScene *scene) {
 			vector.z = mesh->mNormals[i].z;
 			vertex.Normal = vector;
 		}
-		if (mesh->mTextureCoords[0]) {
-			vec2 vec;
-			vec.x = mesh->mTextureCoords[0][i].x;
-			vec.y = mesh->mTextureCoords[0][i].y;
-			vertex.TexCoords = vec;
+		if (mesh->HasTangentsAndBitangents()) {
 			vector.x = mesh->mTangents[i].x;
 			vector.y = mesh->mTangents[i].y;
 			vector.z = mesh->mTangents[i].z;
@@ -96,6 +90,13 @@ Mesh Model::processMesh(aiMesh *mesh, const aiScene *scene) {
 			vector.y = mesh->mBitangents[i].y;
 			vector.z = mesh->mBitangents[i].z;
 			vertex.Bitangent = vector;
+		}
+		if (mesh->mTextureCoords[0]) {
+			vec2 vec;
+			vec.x = mesh->mTextureCoords[0][i].x;
+			vec.y = mesh->mTextureCoords[0][i].y;
+			vertex.TexCoords = vec;
+			
 		}
 		else {
 			vertex.TexCoords = vec2(0.0f, 0.0f);
@@ -136,7 +137,7 @@ vector<Texture> Model::loadMaterialTextures(aiMaterial *mat,aiTextureType type,s
 		bool skip = false;
 		for (unsigned int j = 0; j < textures_loaded.size(); j++)
 		{
-			if (strcmp(textures_loaded[i].path.data,str.C_Str())==0) {
+			if (strcmp(textures_loaded[i].path.data(),str.C_Str())==0) {
 				textures.push_back(textures_loaded[j]);
 				skip = true;
 				break;
@@ -146,7 +147,7 @@ vector<Texture> Model::loadMaterialTextures(aiMaterial *mat,aiTextureType type,s
 			Texture texture;
 			texture.id = TextureFromFile(str.C_Str(), this->directory);
 			texture.type = typeName;
-			texture.path = str;
+			texture.path = str.C_Str();
 			textures.push_back(texture);
 			textures_loaded.push_back(texture);
 		}

@@ -66,6 +66,7 @@ public:
 		glActiveTexture(GL_TEXTURE0);
 
 		glBindVertexArray(VAO);
+		
 		glDrawElements(GL_TRIANGLES, indices.size(), GL_UNSIGNED_INT, 0);
 		glBindVertexArray(0);
 	}
