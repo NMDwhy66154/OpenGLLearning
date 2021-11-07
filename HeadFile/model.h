@@ -144,7 +144,7 @@ vector<Texture> Model::loadMaterialTextures(aiMaterial *mat,aiTextureType type,s
 		}
 		if (!skip) {
 			Texture texture;
-			texture.id = TextureFromFile(str.C_Str, this->directory);
+			texture.id = TextureFromFile(str.C_Str(), this->directory);
 			texture.type = typeName;
 			texture.path = str;
 			textures.push_back(texture);
