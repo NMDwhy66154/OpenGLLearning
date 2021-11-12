@@ -10,6 +10,7 @@
 #include "HeadFile/mesh.h"
 #include "HeadFile/stb_image.h"
 #include "HeadFile/model.h"
+#include <map>
 
 using namespace std;
 using namespace glm;
@@ -148,7 +149,12 @@ int main() {
 	glfwSetCursorPosCallback(window, mouse_callback);
 	glfwSetScrollCallback(window, scroll_callback);
 
-	//Model sampleModel(FileSystem::getPath(""));
+	vector<glm::vec3> vegetation;
+	vegetation.push_back(glm::vec3(-1.5f, 0.0f, -0.48f));
+	vegetation.push_back(glm::vec3(1.5f, 0.0f, 0.51f));
+	vegetation.push_back(glm::vec3(0.0f, 0.0f, 0.7f));
+	vegetation.push_back(glm::vec3(-0.3f, 0.0f, -2.3f));
+	vegetation.push_back(glm::vec3(0.5f, 0.0f, -0.6f));
 
 	glGenBuffers(1, &VBO);
 	glBindBuffer(GL_ARRAY_BUFFER, VBO);
@@ -175,26 +181,46 @@ int main() {
 	glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 8 * sizeof(float), (void*)0);
 	glEnableVertexAttribArray(0);
 
+	unsigned int fbo;
+	glGenFramebuffers(1, &fbo);
+	glBindFramebuffer(GL_FRAMEBUFFER, fbo);
+
 	
-	unsigned int texture1;
-	glGenTextures(1, &texture1);
-	glActiveTexture(GL_TEXTURE0);
-	glBindTexture(GL_TEXTURE_2D, texture1);
+	unsigned int texture;
+	glGenTextures(1, &texture);
+	glBindTexture(GL_TEXTURE_2D, texture);
+
+	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, screenWidth, screenHeight, 0, GL_RGB, GL_UNSIGNED_BYTE, NULL);
 
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
 
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
 
-	stbi_set_flip_vertically_on_load(true);
+	glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0,GL_TEXTURE_2D,texture,0);
 
+	unsigned int rbo;
+	glGenRenderbuffers(1, &rbo);
+	glBindRenderbuffer(GL_RENDERBUFFER, rbo);
+
+	glRenderbufferStorage(GL_RENDERBUFFER, GL_DEPTH24_STENCIL8, screenWidth, screenHeight);
+
+	glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_DEPTH_STENCIL_ATTACHMENT, GL_RENDERBUFFER, rbo);
+
+	if (glCheckFramebufferStatus(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE)
+		std::cout << "ERROR::FRAMEBUFFER:: Framebuffer is not complete!" << std::endl;
+	glBindFramebuffer(GL_FRAMEBUFFER, 0);
+
+	stbi_set_flip_vertically_on_load(true);
 
 	unsigned int diffuseTex = loadTexture("Texture/container2.png");
 	unsigned int specularTex = loadTexture("Texture/container2_specular.png");
 	unsigned int creativesamTex = loadTexture("Texture/matrix.jpg");
+	unsigned int grassTex = loadTexture("Texture/grass.png");
+	unsigned int windowTex = loadTexture("Texture/blending_transparent_window.png");
 
-	glActiveTexture(GL_TEXTURE0);
+	/*glActiveTexture(GL_TEXTURE0);
 	glBindTexture(GL_TEXTURE_2D, diffuseTex);
 	
 	glActiveTexture(GL_TEXTURE1);
@@ -203,10 +229,15 @@ int main() {
 	glActiveTexture(GL_TEXTURE2);
 	glBindTexture(GL_TEXTURE_2D, creativesamTex);
 
+	glActiveTexture(GL_TEXTURE3);
+	glBindTexture(GL_TEXTURE_2D, grassTex);*/
+
 
 	Shader boxShader("Shader/boxShader/shader.vs", "Shader/boxShader/shader.fs");
 	Shader lampShader("lampShader.vs", "lampShader.fs");
 	Shader modelShader("Shader/modelShader/modelShader.vs", "Shader/modelShader/modelShader.fs");
+	Shader grassShader("Shader/grassShader/grassShader.vert","Shader/grassShader/grassShader.frag");
+
 
 	modelShader.use();
 	Model sample("Model/nanosuit.obj");
@@ -290,8 +321,28 @@ int main() {
 	std::cout << "Maximum nr of vertex attributes supported: " << nrAttributes << std::endl;
 
 	glEnable(GL_DEPTH_TEST);
+	glEnable(GL_STENCIL_TEST);
+
+	glDepthFunc(GL_LESS);
+	glStencilFunc(GL_NOTEQUAL, 1, 0xFF);
+	glStencilOp(GL_KEEP, GL_ZERO, GL_KEEP);
+	glStencilMask(0xFF);
+
+	glEnable(GL_BLEND);
+	glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+
+	glEnable(GL_CULL_FACE);
+	glCullFace(GL_BACK);
+	glFrontFace(GL_CCW);
 
 	glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
+
+	std::map<float, glm::vec3> sorted;
+	for (unsigned int i = 0; i < vegetation.size(); i++)
+	{
+		float distance = glm::length(camera.Position - vegetation[i]);
+		sorted[distance] = vegetation[i];
+	}
 
 	while (!glfwWindowShouldClose(window))
 	{
@@ -302,8 +353,7 @@ int main() {
 		processInput(window);
 
 		glClearColor(0.2f, 0.2f, 0.2f, 1.0f);
-		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-		
+		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT);
 		
 		
 
@@ -335,7 +385,7 @@ int main() {
 		glBindTexture(GL_TEXTURE_2D, specularTex);
 
 		
-
+		//不透明物体
 		glBindVertexArray(VAO);
 		for (unsigned int i = 0; i < 10; i++)
 		{
@@ -347,9 +397,9 @@ int main() {
 
 			glDrawArrays(GL_TRIANGLES, 0, 36);
 		}
-
+		
 		modelShader.use();
-		model = scale(model, vec3(0.1, 0.1, 0.1));
+		model = scale(model, vec3(0.2, 0.2, 0.2));
 		modelShader.setMat4("model", model);
 		modelShader.setMat4("view", view);
 		modelShader.setMat4("projection", projection);
@@ -367,11 +417,24 @@ int main() {
 		model = translate(model, lightPos);
 		model = scale(model, vec3(0.2f));
 		lampShader.setMat4("model", model);
-
-		
-		
 		glBindVertexArray(lightVAO);
 		glDrawArrays(GL_TRIANGLES, 0, 36);
+
+		//透明物体
+		glActiveTexture(GL_TEXTURE3);
+		glBindTexture(GL_TEXTURE_2D, windowTex);
+		grassShader.use();
+		grassShader.setMat4("view", view);
+		grassShader.setMat4("projection", projection);
+		grassShader.setInt("grass", 3);
+		glBindVertexArray(VAO);
+		for (std::map<float, glm::vec3>::reverse_iterator it = sorted.rbegin(); it != sorted.rend(); ++it)
+		{
+			model = glm::mat4();
+			model = glm::translate(model, it->second);
+			grassShader.setMat4("model", model);
+			glDrawArrays(GL_TRIANGLES, 0, 6);
+		}
 		
 		//glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, indices);
 
@@ -381,6 +444,7 @@ int main() {
 	glDeleteVertexArrays(1, &VAO);
 	glDeleteVertexArrays(1, &lightVAO);
 	glDeleteBuffers(1, &VBO);
+	glDeleteBuffers(1, &fbo);
 
 	glfwTerminate();
 	return 0;
