@@ -326,7 +326,7 @@ int main() {
 	Shader boxShader("Shader/boxShader/shader.vert", "Shader/boxShader/shader.frag");
 	Shader reflectBoxShader("Shader/boxShader/reflectBox.vert", "Shader/boxShader/reflectBox.frag");
 	Shader lampShader("lampShader.vs", "lampShader.fs");
-	Shader modelShader("Shader/modelShader/modelShader.vs", "Shader/modelShader/modelShader.fs");
+	Shader modelShader("Shader/modelShader/modelShader.vert", "Shader/modelShader/modelShader.frag");
 	Shader grassShader("Shader/grassShader/grassShader.vert","Shader/grassShader/grassShader.frag");
 	Shader screenShader("Shader/screenShader/screenShader.vert","Shader/screenShader/screenShader.frag");
 	Shader skyboxShader("Shader/skyboxShader/skybox.vert","Shader/skyboxShader/skybox.frag");
@@ -338,8 +338,9 @@ int main() {
 	reflectBoxShader.setInt("skybox",0);
 
 	modelShader.use();
-	Model sample("Model/nanosuit.obj");
+	Model sample("Model/nanosuit_reflect/nanosuit.obj");
 	modelShader.setFloat("material.shininess", 32.0f);
+	modelShader.setInt("skybox",3);
 
 	boxShader.use();
 	boxShader.setVec3("objectColor",1.0f,0.5f,0.31f);

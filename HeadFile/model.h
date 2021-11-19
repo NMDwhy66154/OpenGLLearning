@@ -122,6 +122,8 @@ Mesh Model::processMesh(aiMesh *mesh, const aiScene *scene) {
 		textures.insert(textures.end(), normalMaps.begin(), normalMaps.end());
 		vector<Texture> heightMaps = loadMaterialTextures(material, aiTextureType_AMBIENT, "texture_height");
 		textures.insert(textures.end(), heightMaps.begin(), heightMaps.end());
+		vector<Texture> reflectMaps = loadMaterialTextures(material, aiTextureType_AMBIENT, "texture_reflect");
+		textures.insert(textures.end(), reflectMaps.begin(), reflectMaps.end());
 	}
 
 
