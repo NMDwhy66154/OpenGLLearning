@@ -180,6 +180,13 @@ float skyboxVertices[] = {
 	 1.0f, -1.0f,  1.0f
 };
 
+float points[] = {
+	-0.5f,  0.5f, // 左上
+	 0.5f,  0.5f, // 右上
+	 0.5f, -0.5f, // 右下
+	-0.5f, -0.5f  // 左下
+};
+
 int main() {
 	glfwInit();
 	glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 3);
@@ -260,6 +267,15 @@ int main() {
 	glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 3 * sizeof(float), (void*)0);
 	glEnableVertexAttribArray(0);
 
+	unsigned int geomVAO, geomVBO;
+	glGenBuffers(1, &geomVBO);
+	glBindBuffer(GL_ARRAY_BUFFER, geomVBO);
+	glBufferData(GL_ARRAY_BUFFER, sizeof(points), points, GL_STATIC_DRAW);
+	glGenVertexArrays(1, &geomVAO);
+	glBindVertexArray(geomVAO);
+	glVertexAttribPointer(0,1,GL_FLOAT,GL_FALSE,sizeof(float),(void*)0);
+	glEnableVertexAttribArray(0);
+
 #pragma region FrameBuffer
 	unsigned int fbo;
 	glGenFramebuffers(1, &fbo);
@@ -330,6 +346,7 @@ int main() {
 	Shader grassShader("Shader/grassShader/grassShader.vert","Shader/grassShader/grassShader.frag");
 	Shader screenShader("Shader/screenShader/screenShader.vert","Shader/screenShader/screenShader.frag");
 	Shader skyboxShader("Shader/skyboxShader/skybox.vert","Shader/skyboxShader/skybox.frag");
+	Shader geomShader("Shader/geomShader/geomShader.vert", "Shader/geomShader/geomShader.frag", "Shader/geomShader/geomShader.geom");
 
 	skyboxShader.use();
 	skyboxShader.setInt("skybox", 0);
@@ -440,6 +457,8 @@ int main() {
 
 	//glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
 
+	glEnable(GL_PROGRAM_POINT_SIZE);
+
 	glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
 
 	std::map<float, glm::vec3> sorted;
@@ -453,6 +472,23 @@ int main() {
 	mat4 view;
 	mat4 projection;
 
+	unsigned int uboMatrices;
+	glGenBuffers(1, &uboMatrices);
+	glBindBuffer(GL_UNIFORM_BUFFER, uboMatrices);
+	glBufferData(GL_UNIFORM_BUFFER, 2*sizeof(mat4), NULL, GL_STATIC_DRAW);
+	glBindBuffer(GL_UNIFORM_BUFFER, 0);
+
+	glBindBufferRange(GL_UNIFORM_BUFFER, 0, uboMatrices,0,2*sizeof(mat4));
+
+	unsigned int matrices_index0 = glGetUniformBlockIndex(reflectBoxShader.ID, "Matrices");
+	glUniformBlockBinding(reflectBoxShader.ID, matrices_index0,0);
+	unsigned int matrices_index1 = glGetUniformBlockIndex(boxShader.ID, "Matrices");
+	glUniformBlockBinding(boxShader.ID, matrices_index1, 0);
+	unsigned int matrices_index2 = glGetUniformBlockIndex(modelShader.ID, "Matrices");
+	glUniformBlockBinding(modelShader.ID, matrices_index2, 0);
+	unsigned int matrices_index3 = glGetUniformBlockIndex(grassShader.ID, "Matrices");
+	glUniformBlockBinding(grassShader.ID, matrices_index3, 0);
+
 	while (!glfwWindowShouldClose(window))
 	{
 		float currentFrame = (float)glfwGetTime();
@@ -463,6 +499,7 @@ int main() {
 		
 		view = mat4(mat3(camera.GetViewMatrix()));
 		projection = perspective(radians(camera.Zoom), screenWidth / screenHeight, 0.1f, 100.0f);
+
 		glBindFramebuffer(GL_FRAMEBUFFER, 0);
 		glClearColor(0.2f, 0.2f, 0.2f, 1.0f);
 		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
@@ -479,15 +516,22 @@ int main() {
 		glDrawArrays(GL_TRIANGLES, 0, 36);
 		glDepthMask(true);
 #pragma endregion
+		view = camera.GetViewMatrix();
+		projection = perspective(radians(camera.Zoom), screenWidth / screenHeight, 0.1f, 100.0f);
+#pragma region UniformBlock
+		glBindBuffer(GL_UNIFORM_BUFFER, uboMatrices);
+		glBufferSubData(GL_UNIFORM_BUFFER, 0, sizeof(mat4), value_ptr(projection));
+		glBindBuffer(GL_UNIFORM_BUFFER, 0);
 
+		glBindBuffer(GL_UNIFORM_BUFFER, uboMatrices);
+		glBufferSubData(GL_UNIFORM_BUFFER, sizeof(mat4), sizeof(mat4), value_ptr(view));
+		glBindBuffer(GL_UNIFORM_BUFFER, 0);
+#pragma endregion
 #pragma region DrawScene
 
 		boxShader.use();
-		view = camera.GetViewMatrix();
 		mat4 model = mat4(1.0);
 		boxShader.setMat4("model", model);
-		boxShader.setMat4("view", view);
-		boxShader.setMat4("projection", projection);
 
 
 		boxShader.setVec3("viewPos", camera.Position);
@@ -521,11 +565,7 @@ int main() {
 		reflectBoxShader.setVec3("cameraPos",camera.Position);
 		reflectBoxShader.setInt("skybox", 0);
 		model = mat4(1);
-		view = camera.GetViewMatrix();
-		projection = perspective(radians(camera.Zoom), screenWidth / screenHeight, 0.1f, 100.0f);
-		reflectBoxShader.setMat4("view", view);
 		reflectBoxShader.setMat4("model",model);
-		reflectBoxShader.setMat4("projection", projection);
 		glDrawArrays(GL_TRIANGLES, 0, 36);
 		
 
@@ -533,14 +573,16 @@ int main() {
 		model = translate(model, vec3(-2, -3, -4));
 		model = scale(model, vec3(0.2, 0.2, 0.2));
 		modelShader.setMat4("model", model);
-		modelShader.setMat4("view", view);
-		modelShader.setMat4("projection", projection);
 
 		modelShader.setVec3("viewPos", camera.Position);
 		modelShader.setVec3("spotLight.position", camera.Position);
 		modelShader.setVec3("spotLight.direction", camera.Front);
 
 		sample.Draw(modelShader);
+
+		geomShader.use();
+		glBindVertexArray(geomVAO);
+		glDrawArrays(GL_POINTS, 0, 4);
 
 		//模拟光源
 		/*lampShader.use();
