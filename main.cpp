@@ -246,6 +246,37 @@ int main() {
 		}
 	}
 
+	unsigned int amount = 1000;
+	mat4* modelMatrices;
+	modelMatrices = new mat4[amount];
+	srand((unsigned int)glfwGetTime());
+	float radius = 50.0;
+	offset = 2.5f;
+	for (unsigned int i = 0; i < amount; i++)
+	{
+		glm::mat4 model;
+		// 1. 位移：分布在半径为 'radius' 的圆形上，偏移的范围是 [-offset, offset]
+		float angle = (float)i / (float)amount * 360.0f;
+		float displacement = (rand() % (int)(2 * offset * 100)) / 100.0f - offset;
+		float x = sin(angle) * radius + displacement;
+		displacement = (rand() % (int)(2 * offset * 100)) / 100.0f - offset;
+		float y = displacement * 0.4f; // 让行星带的高度比x和z的宽度要小
+		displacement = (rand() % (int)(2 * offset * 100)) / 100.0f - offset;
+		float z = cos(angle) * radius + displacement;
+		model = glm::translate(model, glm::vec3(x, y, z));
+
+		// 2. 缩放：在 0.05 和 0.25f 之间缩放
+		float scale = (float)(rand() % 20) / 100.0f + 0.05;
+		model = glm::scale(model, glm::vec3(scale));
+
+		// 3. 旋转：绕着一个（半）随机选择的旋转轴向量进行随机的旋转
+		float rotAngle = (float)(rand() % 360);
+		model = glm::rotate(model, rotAngle, glm::vec3(0.4f, 0.6f, 0.8f));
+
+		// 4. 添加到矩阵的数组中
+		modelMatrices[i] = model;
+	}
+
 	glGenBuffers(1, &VBO);
 	glBindBuffer(GL_ARRAY_BUFFER, VBO);
 	glBufferData(GL_ARRAY_BUFFER, sizeof(vertices), vertices, GL_STATIC_DRAW);
@@ -404,10 +435,39 @@ int main() {
 	Shader geomShader("Shader/geomShader/geomShader.vert", "Shader/geomShader/geomShader.frag", "Shader/geomShader/geomShader.geom");
 	Shader normalShader("Shader/normalShader/normalShader.vert", "Shader/normalShader/normalShader.frag", "Shader/normalShader/normalShader.geom");
 	Shader instancedShader("Shader/instancedShader/instancedShader.vert", "Shader/instancedShader/instancedShader.frag", nullptr);
+	Shader rockShader("Shader/rockShader/rockShader.vert", "Shader/rockShader/rockShader.frag");
+	Shader planetShader("Shader/planetShader/planetShader.vert", "Shader/planetShader/planetShader.frag");
 
 	Model sample("Model/nanosuit_reflect/nanosuit.obj");
 	Model planet("Model/planet/planet.obj");
 	Model rock("Model/rock/rock.obj");
+
+	unsigned int buffer;
+	glGenBuffers(1, &buffer);
+	glBindBuffer(GL_ARRAY_BUFFER, buffer);
+	glBufferData(GL_ARRAY_BUFFER, amount * sizeof(mat4), &modelMatrices[0], GL_STATIC_DRAW);
+
+	for (unsigned int i = 0; i < rock.meshes.size(); i++)
+	{
+		unsigned int VAO = rock.meshes[i].VAO;
+		glBindVertexArray(VAO);
+		GLsizei vec4Size = sizeof(vec4);
+		glEnableVertexAttribArray(3);
+		glVertexAttribPointer(3, 4, GL_FLOAT, GL_FALSE, 4 * vec4Size, (void*)0);
+		glEnableVertexAttribArray(4);
+		glVertexAttribPointer(4, 4, GL_FLOAT, GL_FALSE, 4 * vec4Size, (void*)(vec4Size));
+		glEnableVertexAttribArray(5);
+		glVertexAttribPointer(5, 4, GL_FLOAT, GL_FALSE, 4 * vec4Size, (void*)(2*vec4Size));
+		glEnableVertexAttribArray(6);
+		glVertexAttribPointer(6, 4, GL_FLOAT, GL_FALSE, 4 * vec4Size, (void*)(3*vec4Size));
+
+		glVertexAttribDivisor(3, 1);
+		glVertexAttribDivisor(4, 1);
+		glVertexAttribDivisor(5, 1);
+		glVertexAttribDivisor(6, 1);
+
+		glBindVertexArray(0);
+	}
 
 	skyboxShader.use();
 	skyboxShader.setInt("skybox", 0);
@@ -538,7 +598,7 @@ int main() {
 	glBufferData(GL_UNIFORM_BUFFER, 2*sizeof(mat4), NULL, GL_STATIC_DRAW);
 	glBindBuffer(GL_UNIFORM_BUFFER, 0);
 
-	glBindBufferRange(GL_UNIFORM_BUFFER, 0, uboMatrices,0,2*sizeof(mat4));
+	glBindBufferRange(GL_UNIFORM_BUFFER, 0, uboMatrices,0,2*sizeof(mat4));//绑定到索引点0，目标必须是GL_TRANSFORM_FEEDBACK_BUFFER或GL_UNIFORM_BUFFER
 
 	unsigned int matrices_index0 = glGetUniformBlockIndex(reflectBoxShader.ID, "Matrices");
 	glUniformBlockBinding(reflectBoxShader.ID, matrices_index0,0);
@@ -548,7 +608,10 @@ int main() {
 	glUniformBlockBinding(modelShader.ID, matrices_index2, 0);
 	unsigned int matrices_index3 = glGetUniformBlockIndex(grassShader.ID, "Matrices");
 	glUniformBlockBinding(grassShader.ID, matrices_index3, 0);
-
+	unsigned int matrices_index4 = glGetUniformBlockIndex(rockShader.ID, "Matrices");
+	glUniformBlockBinding(rockShader.ID, matrices_index4,0);
+	unsigned int matrices_index5 = glGetUniformBlockIndex(planetShader.ID, "Matrices");
+	glUniformBlockBinding(planetShader.ID, matrices_index5, 0);
 
 	while (!glfwWindowShouldClose(window))
 	{
@@ -581,11 +644,11 @@ int main() {
 		projection = perspective(radians(camera.Zoom), screenWidth / screenHeight, 0.1f, 100.0f);
 #pragma region UniformBlock
 		glBindBuffer(GL_UNIFORM_BUFFER, uboMatrices);
-		glBufferSubData(GL_UNIFORM_BUFFER, 0, sizeof(mat4), value_ptr(projection));
+		glBufferSubData(GL_UNIFORM_BUFFER, 0, sizeof(mat4), value_ptr(projection));//填充数据
 		glBindBuffer(GL_UNIFORM_BUFFER, 0);
 
 		glBindBuffer(GL_UNIFORM_BUFFER, uboMatrices);
-		glBufferSubData(GL_UNIFORM_BUFFER, sizeof(mat4), sizeof(mat4), value_ptr(view));
+		glBufferSubData(GL_UNIFORM_BUFFER, sizeof(mat4), sizeof(mat4), value_ptr(view));//填充数据
 		glBindBuffer(GL_UNIFORM_BUFFER, 0);
 #pragma endregion
 #pragma region DrawScene
@@ -625,7 +688,7 @@ int main() {
 		reflectBoxShader.use();
 		reflectBoxShader.setVec3("cameraPos", camera.Position);
 		reflectBoxShader.setInt("skybox", 0);
-		model = mat4(1);
+		model = mat4(1.0f);
 		reflectBoxShader.setMat4("model", model);
 		glDrawArrays(GL_TRIANGLES, 0, 36);
 
@@ -645,6 +708,23 @@ int main() {
 		normalShader.use();
 		normalShader.setMat4("model", model);
 		sample.Draw(normalShader);
+
+#pragma region Planet&Rock
+		
+		planetShader.use();
+		model = mat4(1);
+		model = translate(model, vec3(0.0f, -3.0f, 0.0f));
+		model = scale(model, vec3(4.0f, 4.0f, 4.0f));
+		planetShader.setMat4("model", model);
+		planet.Draw(planetShader);
+		rockShader.use();
+		for (unsigned int i = 0; i < rock.meshes.size(); i++)
+		{
+			glBindVertexArray(rock.meshes[i].VAO);
+			glDrawElementsInstanced(GL_TRIANGLES, rock.meshes[i].indices.size(), GL_UNSIGNED_INT, 0, amount);
+		}
+#pragma endregion
+
 #pragma endregion
 
 
