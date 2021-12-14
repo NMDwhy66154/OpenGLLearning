@@ -2,9 +2,11 @@
 out vec4 FragColor;
 
 
-in vec3 Normal;
-in vec3 FragPos;
-in vec2 TexCoords;
+in GE_OUT{
+    vec3 FragPos;
+	vec3 Normal;
+    vec2 TexCoords;
+} ge_out;
 
 struct Material{
     sampler2D texture_diffuse1;
@@ -73,9 +75,13 @@ float LinearizeDepth(float depth)
     return (2.0 * near * far) / (far + near - z * (far - near));    
 }
 
+vec3 Normal = ge_out.Normal;
+vec3 FragPos = ge_out.FragPos;
+vec2 TexCoords = ge_out.TexCoords;
 
 void main()
 {
+    
     vec3 norm = normalize(Normal);
 	//norm = normalize(texture(material.texture_normal1,TexCoords).rgb);
     vec3 viewDir = normalize(viewPos-FragPos);

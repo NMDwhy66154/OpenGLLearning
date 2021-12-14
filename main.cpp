@@ -181,10 +181,21 @@ float skyboxVertices[] = {
 };
 
 float points[] = {
-	-0.5f,  0.5f, // 左上
-	 0.5f,  0.5f, // 右上
-	 0.5f, -0.5f, // 右下
-	-0.5f, -0.5f  // 左下
+	-0.5f,  0.5f, 1.0f, 0.0f, 0.0f, // 左上
+	 0.5f,  0.5f, 0.0f, 1.0f, 0.0f, // 右上
+	 0.5f, -0.5f, 0.0f, 0.0f, 1.0f, // 右下
+	-0.5f, -0.5f, 1.0f, 1.0f, 0.0f  // 左下
+};
+
+float quadVertices2[] = {
+	// 位置          // 颜色
+	-0.05f,  0.05f,  1.0f, 0.0f, 0.0f,
+	 0.05f, -0.05f,  0.0f, 1.0f, 0.0f,
+	-0.05f, -0.05f,  0.0f, 0.0f, 1.0f,
+
+	-0.05f,  0.05f,  1.0f, 0.0f, 0.0f,
+	 0.05f, -0.05f,  0.0f, 1.0f, 0.0f,
+	 0.05f,  0.05f,  0.0f, 1.0f, 1.0f
 };
 
 int main() {
@@ -220,6 +231,20 @@ int main() {
 	vegetation.push_back(glm::vec3(0.0f, 0.0f, 0.7f));
 	vegetation.push_back(glm::vec3(-0.3f, 0.0f, -2.3f));
 	vegetation.push_back(glm::vec3(0.5f, 0.0f, -0.6f));
+
+	glm::vec2 translations[100];
+	int index = 0;
+	float offset = 0.1f;
+	for (int y = -10; y < 10; y += 2)
+	{
+		for (int x = -10; x < 10; x += 2)
+		{
+			glm::vec2 translation;
+			translation.x = (float)x / 10.0f + offset;
+			translation.y = (float)y / 10.0f + offset;
+			translations[index++] = translation;
+		}
+	}
 
 	glGenBuffers(1, &VBO);
 	glBindBuffer(GL_ARRAY_BUFFER, VBO);
@@ -273,8 +298,38 @@ int main() {
 	glBufferData(GL_ARRAY_BUFFER, sizeof(points), points, GL_STATIC_DRAW);
 	glGenVertexArrays(1, &geomVAO);
 	glBindVertexArray(geomVAO);
-	glVertexAttribPointer(0,1,GL_FLOAT,GL_FALSE,sizeof(float),(void*)0);
+	glVertexAttribPointer(0,2,GL_FLOAT,GL_FALSE,5*sizeof(float),(void*)0);
 	glEnableVertexAttribArray(0);
+	glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, 5 * sizeof(float), (void*)(2*sizeof(float)));
+	glEnableVertexAttribArray(1);
+
+	unsigned int instancedVAO, instancedVBO;
+	glGenBuffers(1, &instancedVBO);
+	glBindBuffer(GL_ARRAY_BUFFER, instancedVBO);
+	glBufferData(GL_ARRAY_BUFFER, sizeof(quadVertices2), quadVertices2, GL_STATIC_DRAW);
+
+
+	glGenVertexArrays(1,&instancedVAO);
+	glBindVertexArray(instancedVAO);
+	glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, 5 * sizeof(float), (void*)0);
+	glEnableVertexAttribArray(0);
+	glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, 5 * sizeof(float), (void*)(2 * sizeof(float)));
+	glEnableVertexAttribArray(1);
+	
+	unsigned int instanceVBO;
+	glGenBuffers(1, &instanceVBO);
+	glBindBuffer(GL_ARRAY_BUFFER, instanceVBO);
+	glBufferData(GL_ARRAY_BUFFER, sizeof(vec2) * 100, &translations[0], GL_STATIC_DRAW);
+	
+	
+	glBindBuffer(GL_ARRAY_BUFFER, instanceVBO);
+	glVertexAttribPointer(2, 2, GL_FLOAT, GL_FALSE, 2 * sizeof(float), (void*)0);
+	glEnableVertexAttribArray(2);
+	glBindBuffer(GL_ARRAY_BUFFER, 0);
+	glVertexAttribDivisor(2, 1);
+	
+	glBindBuffer(GL_ARRAY_BUFFER, 0);
+	
 
 #pragma region FrameBuffer
 	unsigned int fbo;
@@ -342,11 +397,17 @@ int main() {
 	Shader boxShader("Shader/boxShader/shader.vert", "Shader/boxShader/shader.frag");
 	Shader reflectBoxShader("Shader/boxShader/reflectBox.vert", "Shader/boxShader/reflectBox.frag");
 	Shader lampShader("lampShader.vs", "lampShader.fs");
-	Shader modelShader("Shader/modelShader/modelShader.vert", "Shader/modelShader/modelShader.frag");
+	Shader modelShader("Shader/modelShader/modelShader.vert", "Shader/modelShader/modelShader.frag", "Shader/modelShader/modelShader.geom");
 	Shader grassShader("Shader/grassShader/grassShader.vert","Shader/grassShader/grassShader.frag");
 	Shader screenShader("Shader/screenShader/screenShader.vert","Shader/screenShader/screenShader.frag");
 	Shader skyboxShader("Shader/skyboxShader/skybox.vert","Shader/skyboxShader/skybox.frag");
 	Shader geomShader("Shader/geomShader/geomShader.vert", "Shader/geomShader/geomShader.frag", "Shader/geomShader/geomShader.geom");
+	Shader normalShader("Shader/normalShader/normalShader.vert", "Shader/normalShader/normalShader.frag", "Shader/normalShader/normalShader.geom");
+	Shader instancedShader("Shader/instancedShader/instancedShader.vert", "Shader/instancedShader/instancedShader.frag", nullptr);
+
+	Model sample("Model/nanosuit_reflect/nanosuit.obj");
+	Model planet("Model/planet/planet.obj");
+	Model rock("Model/rock/rock.obj");
 
 	skyboxShader.use();
 	skyboxShader.setInt("skybox", 0);
@@ -355,7 +416,6 @@ int main() {
 	reflectBoxShader.setInt("skybox",0);
 
 	modelShader.use();
-	Model sample("Model/nanosuit_reflect/nanosuit.obj");
 	modelShader.setFloat("material.shininess", 32.0f);
 	modelShader.setInt("skybox",3);
 
@@ -489,6 +549,7 @@ int main() {
 	unsigned int matrices_index3 = glGetUniformBlockIndex(grassShader.ID, "Matrices");
 	glUniformBlockBinding(grassShader.ID, matrices_index3, 0);
 
+
 	while (!glfwWindowShouldClose(window))
 	{
 		float currentFrame = (float)glfwGetTime();
@@ -528,7 +589,6 @@ int main() {
 		glBindBuffer(GL_UNIFORM_BUFFER, 0);
 #pragma endregion
 #pragma region DrawScene
-
 		boxShader.use();
 		mat4 model = mat4(1.0);
 		boxShader.setMat4("model", model);
@@ -545,8 +605,9 @@ int main() {
 
 		glActiveTexture(GL_TEXTURE1);
 		glBindTexture(GL_TEXTURE_2D, specularTex);
+		
 
-
+#pragma region OpaqueObject
 		//不透明物体
 		glBindVertexArray(VAO);
 		for (unsigned int i = 0; i < 10; i++)
@@ -562,12 +623,12 @@ int main() {
 		glActiveTexture(GL_TEXTURE0);
 		glBindTexture(GL_TEXTURE_2D, cubemapTexture);
 		reflectBoxShader.use();
-		reflectBoxShader.setVec3("cameraPos",camera.Position);
+		reflectBoxShader.setVec3("cameraPos", camera.Position);
 		reflectBoxShader.setInt("skybox", 0);
 		model = mat4(1);
-		reflectBoxShader.setMat4("model",model);
+		reflectBoxShader.setMat4("model", model);
 		glDrawArrays(GL_TRIANGLES, 0, 36);
-		
+
 
 		modelShader.use();
 		model = translate(model, vec3(-2, -3, -4));
@@ -577,13 +638,32 @@ int main() {
 		modelShader.setVec3("viewPos", camera.Position);
 		modelShader.setVec3("spotLight.position", camera.Position);
 		modelShader.setVec3("spotLight.direction", camera.Front);
+		//modelShader.setFloat("time", glfwGetTime());
 
 		sample.Draw(modelShader);
 
-		geomShader.use();
-		glBindVertexArray(geomVAO);
-		glDrawArrays(GL_POINTS, 0, 4);
+		normalShader.use();
+		normalShader.setMat4("model", model);
+		sample.Draw(normalShader);
+#pragma endregion
 
+
+#pragma region SnowHouse
+		/*geomShader.use();
+		glBindVertexArray(geomVAO);
+		glDrawArrays(GL_POINTS, 0, 4);*/
+#pragma endregion
+
+
+#pragma region GPUInstanced
+		instancedShader.use();
+		glBindVertexArray(instancedVAO);
+		glDrawArraysInstanced(GL_TRIANGLES, 0, 6, 100);
+#pragma endregion
+
+
+		
+#pragma region LightSimulater
 		//模拟光源
 		/*lampShader.use();
 		lampShader.setMat4("view", view);
@@ -594,7 +674,10 @@ int main() {
 		lampShader.setMat4("model", model);
 		glBindVertexArray(lightVAO);
 		glDrawArrays(GL_TRIANGLES, 0, 36);*/
+#pragma endregion
 
+		
+#pragma region TransparentObject
 		//透明物体
 		glActiveTexture(GL_TEXTURE3);
 		glBindTexture(GL_TEXTURE_2D, windowTex);
@@ -611,8 +694,10 @@ int main() {
 			glDrawArrays(GL_TRIANGLES, 0, 6);
 		}
 #pragma endregion
+		
+#pragma endregion
 	
-//#pragma region PostProcessing
+#pragma region PostProcessing
 //		glBindFramebuffer(GL_FRAMEBUFFER, 0);
 //		glDisable(GL_DEPTH_TEST);
 //		glClearColor(1, 1, 1, 1);
@@ -622,7 +707,7 @@ int main() {
 //		glActiveTexture(GL_TEXTURE0);
 //		glBindTexture(GL_TEXTURE_2D, texture);
 //		glDrawArrays(GL_TRIANGLES, 0, 6);
-//#pragma endregion
+#pragma endregion
 
 		glfwSwapBuffers(window);
 		glfwPollEvents();

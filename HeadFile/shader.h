@@ -119,6 +119,13 @@ public:
 			fShaderFile.close();
 			vertexCode = vShaderStream.str();
 			fragmentCode = fShaderSteam.str();
+			if(geometryPath!=nullptr){
+				gShaderFile.open(geometryPath);
+				stringstream gShaderStream;
+				gShaderStream << gShaderFile.rdbuf();
+				gShaderFile.close();
+				geometryCode = gShaderStream.str();
+			}
 		}
 		catch (ifstream::failure e) {
 			std::cout << "ERROR::SHADER::FILE_NOT_SUCCESFULLY_READ" << std::endl;
@@ -203,6 +210,12 @@ public:
 	}
 	void setVec3(const string& name, vec3 value) const {
 		glUniform3f(glGetUniformLocation(ID, name.c_str()), value.x, value.y, value.z);
+	}
+	void setVec2(const string& name, vec2 value) const {
+		glUniform2f(glGetUniformLocation(ID, name.c_str()), value.x, value.y);
+	}
+	void setVec2(const string& name, float x,float y) const {
+		glUniform2f(glGetUniformLocation(ID, name.c_str()), x, y);
 	}
 };
 
