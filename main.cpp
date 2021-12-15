@@ -246,12 +246,12 @@ int main() {
 		}
 	}
 
-	unsigned int amount = 1000;
+	unsigned int amount = 10000;
 	mat4* modelMatrices;
 	modelMatrices = new mat4[amount];
 	srand((unsigned int)glfwGetTime());
-	float radius = 50.0;
-	offset = 2.5f;
+	float radius = 75.0f;
+	offset = 10.0f;
 	for (unsigned int i = 0; i < amount; i++)
 	{
 		glm::mat4 model;
