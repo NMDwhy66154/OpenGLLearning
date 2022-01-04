@@ -12,6 +12,7 @@ unsigned int TextureFromFile(const char *path, const string &directory, bool gam
 class Model
 {
 public:
+	Model();
 	Model(const char* path);
 	vector<Mesh> meshes;
 	string directory;
@@ -27,6 +28,11 @@ private:
 Model::Model(const char *path)
 {
 	loadModel(path);
+}
+
+Model::Model()
+{
+	
 }
 
 void Model::Draw(Shader shader) {

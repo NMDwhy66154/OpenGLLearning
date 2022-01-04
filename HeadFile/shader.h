@@ -26,7 +26,7 @@ public:
 	//void setBool(const string& name, bool value) const;
 	//void setInt(const string& name, int value) const;
 	//void setFloat(const string& name, float value) const;
-
+	Shader() {};
 	Shader(const char* vertexPath, const char* fragmentPath) {
 		// 1. 从文件路径中获取顶点/片段着色器
 		string vertexCode;
