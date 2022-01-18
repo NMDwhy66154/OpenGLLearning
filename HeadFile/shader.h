@@ -217,6 +217,10 @@ public:
 	void setVec2(const string& name, float x,float y) const {
 		glUniform2f(glGetUniformLocation(ID, name.c_str()), x, y);
 	}
+	void setUniformBlock(const string& name,int blockIndex )const {
+		unsigned int indexInShader = glGetUniformBlockIndex(ID, name.c_str());
+		glUniformBlockBinding(ID, indexInShader, blockIndex);
+	}
 };
 
 #endif // !SHADER_H
